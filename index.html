@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>気づける家計簿</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;background:#eef1f5;color:#17202b;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif}
+button,input,select{font:inherit}.app{max-width:480px;margin:auto;min-height:100vh;background:#fff;padding-bottom:100px}
+.top{padding:18px 16px 10px}.monthnav{display:flex;align-items:center;justify-content:space-between}.monthnav button{border:0;background:#f0f2f5;border-radius:10px;width:36px;height:36px;font-size:22px}.title{font-size:24px;font-weight:850;margin:12px 0 3px}.sub{color:#697381;font-size:12px}
+.balance{margin:0 14px 12px;padding:19px;border-radius:20px;background:#111827;color:#fff}.balance small{color:#b8c1cd}.big{font-size:34px;font-weight:850;margin:3px 0 13px}.balance-row{display:flex;justify-content:space-between;color:#c6ced8;font-size:12px}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:0 14px}.card{border:1px solid #e2e6eb;border-radius:15px;padding:13px;background:#fff}.card small{color:#697381;font-size:12px}.card strong{display:block;font-size:19px;margin-top:3px}.danger{color:#dc2626!important}.good{color:#15803d!important}
+.section{margin:19px 14px}.section h2{font-size:16px;margin:0 0 9px}.insight{background:#fff7ed;border:1px solid #fed7aa;border-radius:15px;padding:13px}.insight b{display:block;margin-bottom:3px}.insight small{color:#6b7280;line-height:1.55}
+.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.quick button{border:1px solid #e0e4e9;background:#fff;border-radius:12px;padding:9px 3px;font-size:12px;font-weight:700}
+.tabs{display:flex;margin:0 14px;background:#f0f2f5;padding:4px;border-radius:12px}.tab{flex:1;border:0;background:transparent;padding:9px;border-radius:9px;font-weight:750}.tab.active{background:#fff;box-shadow:0 1px 4px #0001}
+.pay,.cat,.fixed{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #edf0f2}.bar{height:8px;background:#e9edf1;border-radius:8px;margin-top:6px;overflow:hidden}.fill{height:100%;background:#263241;border-radius:8px}
+.history{display:none}.history.show{display:block}.item{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid #edf0f2}.item .name{font-weight:750}.item small{display:block;color:#727b87;margin-top:3px;line-height:1.4}.item button{border:0;background:#f1f3f5;border-radius:8px;padding:6px 8px;font-size:12px}
+.fab{position:fixed;right:20px;bottom:20px;width:60px;height:60px;border:0;border-radius:50%;background:#111827;color:#fff;font-size:29px;box-shadow:0 8px 25px #0003;z-index:4}
+.modal{display:none;position:fixed;inset:0;background:#0008;align-items:flex-end;z-index:10}.sheet{background:#fff;width:100%;max-width:480px;margin:auto;border-radius:22px 22px 0 0;padding:18px;max-height:90vh;overflow:auto}.sheet h2{margin:0 0 10px}.sheet label{font-size:12px;color:#626b76;display:block;margin-top:7px}.sheet input,.sheet select{width:100%;padding:12px;margin:4px 0 5px;border:1px solid #d8dce1;border-radius:11px;font-size:16px}.save{width:100%;padding:13px;border:0;border-radius:12px;background:#111827;color:#fff;font-weight:800;margin-top:8px}.cancel{width:100%;margin-top:7px;padding:10px;border:0;background:white;color:#666}
+.notice{padding:12px;border-radius:13px;background:#f3f4f6;font-size:12px;color:#5e6773;line-height:1.55}.settings-btn{border:0;background:#f0f2f5;border-radius:10px;padding:8px 10px;font-size:12px;font-weight:700}.empty{color:#8a929d;text-align:center;padding:20px 0;font-size:13px}
+@media(min-width:520px){.app{box-shadow:0 0 25px #0001}}
+</style>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="家計簿">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+}
+</script>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="monthnav">
+      <button onclick="changeMonth(-1)">‹</button>
+      <div><b id="monthLabel"></b></div>
+      <button onclick="changeMonth(1)">›</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:end">
+      <div><div class="title">家計、ちゃんと見えてる？</div><div class="sub">使った後ではなく、使う前に気づく家計簿</div></div>
+      <button class="settings-btn" onclick="openSettings()">⚙ 設定</button>
+    </div>
+  </div>
+
+  <div class="balance">
+    <small>今月あと使える金額</small>
+    <div class="big" id="remaining"></div>
+    <div class="balance-row"><span>収入 <b id="incomeText"></b></span><span>自由費予算 <b id="budgetText"></b></span></div>
+  </div>
+
+  <div class="twocol">
+    <div class="card"><small>PayPay</small><strong id="paypay"></strong></div>
+    <div class="card"><small>d払い</small><strong id="dpay"></strong></div>
+    <div class="card"><small>1日あたり</small><strong id="daily"></strong></div>
+    <div class="card"><small>今月の支出</small><strong id="spent"></strong></div>
+    <div class="card"><small>翌月払い予定</small><strong id="nextPay"></strong></div>
+    <div class="card"><small>翌月の確定支払</small><strong id="nextCash"></strong></div>
+  </div>
+
+  <div class="section">
+    <h2>⚡ すぐ入力</h2>
+    <div class="quick">
+      <button onclick="quickAdd('コンビニ')">🏪 コンビニ</button>
+      <button onclick="quickAdd('食費')">🍚 食費</button>
+      <button onclick="quickAdd('ゲーム・漫画')">🎮 ゲーム</button>
+      <button onclick="quickAdd('デート')">❤️ デート</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>⚠️ 今月の気づき</h2>
+    <div class="insight" id="insight"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="analysisTab" onclick="showTab('analysis')">分析</button>
+    <button class="tab" id="historyTab" onclick="showTab('history')">履歴</button>
+    <button class="tab" id="fixedTab" onclick="showTab('fixed')">固定費</button>
+  </div>
+
+  <div id="analysis">
+    <div class="section"><h2>決済サービス別</h2><div id="payments"></div></div>
+    <div class="section"><h2>カテゴリ別</h2><div id="categories"></div></div>
+  </div>
+  <div id="history" class="history"><div class="section"><h2>支出履歴</h2><div id="historyList"></div></div></div>
+  <div id="fixed" class="history"><div class="section">
+    <h2>固定費</h2><div id="fixedList"></div>
+    <button class="save" onclick="openFixed()">＋ 固定費を追加</button>
+    <div style="height:8px"></div><div class="notice">固定費は毎月の「自由に使える金額」から自動で差し引きます。削除・変更もできます。</div>
+  </div></div>
+
+  <button class="fab" onclick="openModal()">＋</button>
+</div>
+
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="sheet">
+    <h2 id="modalTitle">支出を追加</h2>
+    <label>金額</label><input id="amount" type="number" inputmode="numeric" placeholder="例：1800">
+    <label>利用日</label><input id="date" type="date">
+    <label>支払方法</label>
+    <select id="method"><option>PayPay</option><option>d払い</option><option>現金</option><option>クレカ</option></select>
+    <label>支払タイミング</label>
+    <select id="timing"><option value="this">今月払い</option><option value="next">翌月払い</option></select>
+    <label>カテゴリ</label>
+    <select id="category"><option>コンビニ</option><option>食費</option><option>ゲーム・漫画</option><option>デート</option><option>交通</option><option>固定費</option><option>買い物・その他</option></select>
+    <label>メモ</label><input id="memo" placeholder="任意">
+    <button class="save" onclick="saveExpense()">保存する</button><button class="cancel" onclick="closeModal()">キャンセル</button>
+  </div>
+</div>
+
+<div class="modal" id="settings" onclick="if(event.target===this)closeSettings()">
+  <div class="sheet">
+    <h2>家計設定</h2>
+    <label>毎月の手取り収入</label><input id="income" type="number" inputmode="numeric">
+    <label>毎月の自由費予算</label><input id="budget" type="number" inputmode="numeric">
+    <div class="notice">「自由費予算」は、固定費とは別に今月使ってよい上限です。まずは無理のない金額を入れてください。</div>
+    <button class="save" onclick="saveSettings()">設定を保存</button>
+    <button class="cancel" onclick="exportData()">データを書き出す（バックアップ）</button>
+    <button class="cancel" onclick="document.getElementById('importFile').click()">バックアップを読み込む</button>
+    <input id="importFile" type="file" accept=".json" style="display:none" onchange="importData(event)">
+    <button class="cancel" onclick="closeSettings()">閉じる</button>
+  </div>
+</div>
+
+<div class="modal" id="fixedModal" onclick="if(event.target===this)closeFixed()">
+  <div class="sheet">
+    <h2 id="fixedTitle">固定費を追加</h2>
+    <label>名称</label><input id="fixedName" placeholder="例：家賃">
+    <label>月額</label><input id="fixedAmount" type="number" inputmode="numeric" placeholder="例：60000">
+    <label>支払方法</label><select id="fixedMethod"><option>口座</option><option>クレカ</option><option>PayPay</option><option>d払い</option><option>現金</option></select>
+    <button class="save" onclick="saveFixed()">保存する</button><button class="cancel" onclick="closeFixed()">キャンセル</button>
+  </div>
+</div>
+
+<script>
+const KEY='kakeibo_v3';
+const oldKey='kakeibo_v2';
+let state=JSON.parse(localStorage.getItem(KEY)||'null');
+if(!state){
+  const old=JSON.parse(localStorage.getItem(oldKey)||'null');
+  const expenses=(old||[
+    {id:1,date:'2026-10-01',amount:1800,method:'PayPay',category:'コンビニ',memo:'昼食'},
+    {id:2,date:'2026-10-01',amount:3200,method:'d払い',category:'食費',memo:'夕食'},
+    {id:3,date:'2026-10-01',amount:5000,method:'d払い',category:'ゲーム・漫画',memo:'ゲーム'},
+    {id:4,date:'2026-10-01',amount:4200,method:'PayPay',category:'買い物・その他',memo:''}
+  ]).map(x=>({...x,timing:x.timing||'this'}));
+  state={expenses,fixed:[],income:300000,budget:280000};
+}
+state.expenses=(state.expenses||[]).map(x=>({...x,timing:x.timing||'this'}));
+state.fixed=state.fixed||[];
+state.income=Number(state.income||300000);
+state.budget=Number(state.budget||280000);
+let month=new Date(); month.setDate(1); let editId=null, editFixedId=null;
+
+const yen=n=>'¥'+Math.round(n).toLocaleString('ja-JP');
+const ym=d=>String(d).slice(0,7);
+const keyMonth=()=>month.getFullYear()+'-'+String(month.getMonth()+1).padStart(2,'0');
+function saveState(){localStorage.setItem(KEY,JSON.stringify(state))}
+function daysLeft(){
+  const now=new Date(), key=keyMonth(), today=now.toISOString().slice(0,7);
+  const days=new Date(month.getFullYear(),month.getMonth()+1,0).getDate();
+  return key===today?Math.max(1,days-now.getDate()+1):days;
+}
+function render(){
+  const key=keyMonth(), list=state.expenses.filter(x=>ym(x.date)===key);
+  const spent=list.reduce((a,x)=>a+Number(x.amount),0);
+  const fixed=state.fixed.reduce((a,x)=>a+Number(x.amount),0);
+  const usable=Math.max(0,state.budget-fixed);
+  const remaining=usable-spent;
+  const nextPay=list.filter(x=>x.timing==='next').reduce((a,x)=>a+Number(x.amount),0);
+  const nextKey=new Date(month.getFullYear(),month.getMonth()+1,1).toISOString().slice(0,7);
+  const nextList=state.expenses.filter(x=>ym(x.date)===nextKey);
+  const nextThis=nextList.filter(x=>x.timing==='this').reduce((a,x)=>a+Number(x.amount),0);
+  const nextFromPrev=nextPay;
+  const nextCash=nextThis+nextFromPrev;
+
+  document.getElementById('monthLabel').textContent=month.getFullYear()+'年'+(month.getMonth()+1)+'月';
+  document.getElementById('incomeText').textContent=yen(state.income);
+  document.getElementById('budgetText').textContent=yen(usable);
+  document.getElementById('remaining').textContent=yen(Math.max(0,remaining));
+  document.getElementById('remaining').className='big '+(remaining<0?'danger':'');
+  document.getElementById('spent').textContent=yen(spent);
+  document.getElementById('daily').textContent=yen(Math.max(0,remaining)/daysLeft());
+  document.getElementById('nextPay').textContent=yen(nextPay);
+  document.getElementById('nextCash').textContent=yen(nextCash);
+
+  const pay={PayPay:0,'d払い':0,'現金':0,'クレカ':0};
+  list.forEach(x=>pay[x.method]=(pay[x.method]||0)+Number(x.amount));
+  document.getElementById('paypay').textContent=yen(pay.PayPay);
+  document.getElementById('dpay').textContent=yen(pay['d払い']);
+
+  const cashless=pay.PayPay+pay['d払い']+pay['クレカ'];
+  const ratio=spent?Math.round((pay.PayPay+pay['d払い'])/spent*100):0;
+  let warning='';
+  if(remaining<0) warning='<b>🔴 予算オーバー</b><small>自由費予算を '+yen(Math.abs(remaining))+' 超えています。次の支出は一度立ち止まろう。</small>';
+  else if(cashless>=70000) warning=`<b>⚠️ キャッシュレスが ${yen(cashless)}</b><small>PayPay＋d払いだけで ${yen(pay.PayPay+pay['d払い'])}。このペースなら月末までの使い方を確認しよう。</small>`;
+  else if(nextCash>Math.max(50000,usable*.25)) warning=`<b>📅 翌月の支払いが ${yen(nextCash)}</b><small>翌月に実際に出ていく予定額です。今月の「使える金額」と別に確認できます。</small>`;
+  else warning=`<b>👍 今のところ順調</b><small>残り ${yen(Math.max(0,remaining))}。1日あたり ${yen(Math.max(0,remaining)/daysLeft())} を目安にできます。</small>`;
+  document.getElementById('insight').innerHTML=warning;
+
+  const pm=document.getElementById('payments');pm.innerHTML='';
+  Object.entries(pay).forEach(([k,v])=>{if(v)pm.innerHTML+=`<div class="pay"><span>${k}</span><b>${yen(v)}</b></div>`});
+  if(!pm.innerHTML)pm.innerHTML='<div class="empty">まだ支出がありません</div>';
+
+  const cats={};list.forEach(x=>cats[x.category]=(cats[x.category]||0)+Number(x.amount));
+  const ca=document.getElementById('categories');ca.innerHTML='';
+  Object.entries(cats).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>ca.innerHTML+=`<div class="cat"><div style="width:70%"><span>${k}</span><div class="bar"><div class="fill" style="width:${spent?v/spent*100:0}%"></div></div></div><b>${yen(v)}</b></div>`);
+  if(!ca.innerHTML)ca.innerHTML='<div class="empty">支出を登録すると表示されます</div>';
+
+  const hl=document.getElementById('historyList');hl.innerHTML='';
+  [...list].sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).forEach(x=>{
+    hl.innerHTML+=`<div class="item"><div><span class="name">${x.category}</span><small>${x.date} ・ ${x.method}${x.timing==='next'?' ・ 翌月払い':''}${x.memo?' ・ '+escapeHtml(x.memo):''}</small></div><div><b>${yen(x.amount)}</b><br><button onclick="editExpense(${x.id})">編集</button> <button onclick="deleteExpense(${x.id})">削除</button></div></div>`;
+  });
+  if(!hl.innerHTML)hl.innerHTML='<div class="empty">この月の支出はありません</div>';
+
+  const fl=document.getElementById('fixedList');fl.innerHTML='';
+  state.fixed.forEach(x=>fl.innerHTML+=`<div class="fixed"><span>${escapeHtml(x.name)}<small style="display:block;color:#78818c">${x.method}</small></span><span><b>${yen(x.amount)}</b> <button onclick="editFixed(${x.id})">編集</button> <button onclick="deleteFixed(${x.id})">削除</button></span></div>`);
+  if(!fl.innerHTML)fl.innerHTML='<div class="empty">固定費はまだ登録されていません</div>';
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function changeMonth(n){month.setMonth(month.getMonth()+n);render()}
+function showTab(t){
+  document.getElementById('analysis').style.display=t==='analysis'?'block':'none';
+  document.getElementById('history').className=t==='history'?'history show':'history';
+  document.getElementById('fixed').className=t==='fixed'?'history show':'history';
+  ['analysis','history','fixed'].forEach(x=>document.getElementById(x+'Tab').className='tab '+(x===t?'active':''));
+}
+function quickAdd(cat){openModal();document.getElementById('category').value=cat}
+function openModal(id=null){
+  editId=id;document.getElementById('modalTitle').textContent=id?'支出を編集':'支出を追加';
+  const x=id?state.expenses.find(a=>a.id===id):null;
+  document.getElementById('amount').value=x?.amount||'';
+  document.getElementById('date').value=x?.date||keyMonth()+'-01';
+  document.getElementById('method').value=x?.method||'PayPay';
+  document.getElementById('timing').value=x?.timing||'this';
+  document.getElementById('category').value=x?.category||'コンビニ';
+  document.getElementById('memo').value=x?.memo||'';
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';editId=null}
+function saveExpense(){
+  const amount=Number(document.getElementById('amount').value), date=document.getElementById('date').value;
+  if(!amount||!date){alert('金額と利用日を入力してください');return}
+  const x={id:editId||Date.now(),amount,date,method:document.getElementById('method').value,timing:document.getElementById('timing').value,category:document.getElementById('category').value,memo:document.getElementById('memo').value};
+  if(editId)state.expenses=state.expenses.map(a=>a.id===editId?x:a);else state.expenses.push(x);
+  saveState();closeModal();render();
+}
+function editExpense(id){openModal(id)}
+function deleteExpense(id){if(confirm('この支出を削除しますか？')){state.expenses=state.expenses.filter(x=>x.id!==id);saveState();render()}}
+function openSettings(){
+  document.getElementById('income').value=state.income;document.getElementById('budget').value=state.budget;document.getElementById('settings').style.display='flex'
+}
+function closeSettings(){document.getElementById('settings').style.display='none'}
+function saveSettings(){
+  state.income=Number(document.getElementById('income').value)||0;
+  state.budget=Number(document.getElementById('budget').value)||0;
+  saveState();closeSettings();render();
+}
+function openFixed(id=null){
+  editFixedId=id;document.getElementById('fixedTitle').textContent=id?'固定費を編集':'固定費を追加';
+  const x=id?state.fixed.find(a=>a.id===id):null;
+  document.getElementById('fixedName').value=x?.name||'';
+  document.getElementById('fixedAmount').value=x?.amount||'';
+  document.getElementById('fixedMethod').value=x?.method||'口座';
+  document.getElementById('fixedModal').style.display='flex';
+}
+function closeFixed(){document.getElementById('fixedModal').style.display='none';editFixedId=null}
+function saveFixed(){
+  const name=document.getElementById('fixedName').value.trim(), amount=Number(document.getElementById('fixedAmount').value);
+  if(!name||!amount){alert('名称と金額を入力してください');return}
+  const x={id:editFixedId||Date.now(),name,amount,method:document.getElementById('fixedMethod').value};
+  if(editFixedId)state.fixed=state.fixed.map(a=>a.id===editFixedId?x:a);else state.fixed.push(x);
+  saveState();closeFixed();render();
+}
+function editFixed(id){openFixed(id)}
+function deleteFixed(id){if(confirm('この固定費を削除しますか？')){state.fixed=state.fixed.filter(x=>x.id!==id);saveState();render()}}
+function exportData(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='kakeibo-backup.json';a.click();URL.revokeObjectURL(a.href);
+}
+function importData(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>{try{const x=JSON.parse(r.result);if(!x.expenses)throw 0;state={...state,...x};saveState();render();alert('バックアップを読み込みました')}catch(_){alert('読み込めないファイルです')}};r.readAsText(f);e.target.value='';
+}
+render();
+</script>
+</body>
+</html>
